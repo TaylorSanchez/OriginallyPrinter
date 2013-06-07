@@ -1,0 +1,201 @@
+#include <SoftwareSerial.h>
+
+#define RxD 6
+#define TxD 7
+
+SoftwareSerial blueToothSerial(RxD,TxD);
+
+const int
+//motor A connection constants
+// PWM_A   = 1,
+// DIR_A   =,
+// BRAK_A  =,
+
+//motor B connection constants
+PWM_B   = 3,
+DIR_B   = 12,
+BRAKE_B = 9,
+
+//motor C connection constants
+PWM_C   = 11,
+DIR_C   = 13,
+BRAKE_C = 8,
+
+//motor D connection constants
+ PWM_D  = 4;
+// DIR_D   =,
+// BRAK_D  =;
+
+//control constants
+const byte
+PARITY      = B10000000,
+MOTOR_SEL   = B01100000, //00=A 01=B 10=C 11=D
+MOTOR_BACK  = B00010000, //forward 0 backward is 1 //signed bit
+MOTOR_SPEED = B00001111;
+
+int
+// SpeedA,
+SpeedB,
+SpeedC,
+SpeedD,
+
+// DirectionA,
+DirectionB,
+DirectionC,
+DirectionD,
+
+runOnce;
+
+char
+recvByte,
+recvByteTemp,
+recvByteEmtpy;
+
+
+void setup()
+{
+  //bluetooth
+  Serial.begin(9600);
+  pinMode(RxD, INPUT);
+  pinMode(TxD, OUTPUT);
+  setupBlueToothConnection();
+
+  //controls
+  // SpeedA = 0;
+  SpeedB = 0;
+  SpeedC = 0;
+  SpeedD = 0;
+
+  // DirectionA = LOW;
+  DirectionB = LOW;
+  DirectionC = LOW;
+  DirectionD = LOW;
+
+
+  //motors
+  pinMode(PWM_B, OUTPUT);
+  pinMode(BRAKE_B, OUTPUT);    //Brake pin on channel B
+  pinMode(DIR_B, OUTPUT);      //Direction pin on channel B
+
+  pinMode(PWM_C, OUTPUT);
+  pinMode(BRAKE_C, OUTPUT);    //Brake pin on channel C
+  pinMode(DIR_C, OUTPUT);      //Direction pin on channel C
+  
+  digitalWrite(BRAKE_B, LOW);
+  digitalWrite(BRAKE_C, LOW);  //Setting the brake for motor off
+
+  recvByte = B00000000;
+  runOnce = -1;
+}
+
+void loop() {
+  if(runOnce){
+    recvByteEmtpy = blueToothSerial.read();
+  }
+
+  runMotors();
+
+  changeMotors();
+
+  recvByteTemp = blueToothSerial.read();
+
+  if(recvByteTemp != recvByteEmtpy){
+      recvByte = recvByteTemp;
+  }
+
+  runOnce = 0;
+
+}
+
+void runMotors()
+{    
+  // analogWrite(PWM_A, DirectionA);
+  // analogWrite(PWM_A, SpeedA);
+
+  digitalWrite(DIR_B, DirectionB);
+  analogWrite(PWM_B, SpeedB);
+
+  digitalWrite(DIR_C, DirectionC);
+  analogWrite(PWM_C, SpeedC);
+
+//  digitalWrite(DIR_D, DirectionD);
+  analogWrite(PWM_D, SpeedD);
+}
+
+void changeMotors(){
+  switch(recvByte & MOTOR_SEL){
+//       case B00000000://MotorA //LED
+//         if (recvByte & MOTOR_SPEED){
+//           SpeedA = (85 * log((recvByte & MOTOR_SPEED) + 5)) + 1;
+//         }else{
+//           SpeedA = 0;
+//         }
+//         if((recvByte & MOTOR_BACK) == MOTOR_BACK){
+//           DirectionA = LOW;
+//         }else{
+//           DirectionA = HIGH;
+//        }
+//         break;
+      case B00100000://MotorB Right
+        if (recvByte & MOTOR_SPEED){
+          SpeedB = (85 * log((recvByte & MOTOR_SPEED) + 5)) + 1; // (85*log(Variable+5)) +1;
+        }else{
+          SpeedB = 0;
+        }
+        if((recvByte & MOTOR_BACK) == MOTOR_BACK){
+          DirectionB = LOW;
+        }else{
+          DirectionB = HIGH;
+        }
+        break;
+
+      case B01000000://MotorC Left
+        if (recvByte & MOTOR_SPEED){
+          SpeedC = (85 * log((recvByte & MOTOR_SPEED) + 5)) + 1;
+        }else{
+          SpeedC = 0;
+        }
+        if((recvByte & MOTOR_BACK) == MOTOR_BACK){
+          DirectionC = LOW;
+        }else{
+          DirectionC = HIGH;
+        }
+        break;
+
+      case B01100000://MotorD
+        if (recvByte & MOTOR_SPEED){
+          SpeedD = (85 * log((recvByte & MOTOR_SPEED) + 5)) + 1;
+        }else{
+          SpeedD = 0;
+        }
+                 Serial.print(SpeedD);
+                 Serial.print("\n");
+        if((recvByte & MOTOR_BACK) == MOTOR_BACK){
+          DirectionD = LOW;
+        }else{
+          DirectionD = HIGH;
+        }
+        break;
+
+      default:
+      ;
+  }
+}
+
+void setupBlueToothConnection()
+{
+  blueToothSerial.begin(38400); //Set BluetoothBee BaudRate to default baud rate 38400
+  blueToothSerial.print("\r\n+STWMOD=0\r\n"); //set the bluetooth work in slave mode
+  blueToothSerial.print("\r\n+STNA=SeeedBTSlave\r\n"); //set the bluetooth name as "SeeedBTSlave"
+  blueToothSerial.print("\r\n+STOAUT=1\r\n"); // Permit Paired device to connect me
+  blueToothSerial.print("\r\n+STAUTO=0\r\n"); // Auto-connection should be forbidden here
+  delay(2000); // This delay is required.
+  blueToothSerial.print("\r\n+INQ=1\r\n"); //make the slave bluetooth inquirable
+  Serial.println("The slave bluetooth is inquirable!");
+  delay(2000); // This delay is required.
+  blueToothSerial.flush();
+}
+
+
+
+
